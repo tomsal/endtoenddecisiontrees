@@ -116,6 +116,7 @@ if __name__ == '__main__':
   batch_size = args.batch_size
   if batch_size == 0:
     batch_size = len(train_set)
+  args.batch_size = batch_size
 
   # steepness for CNN 25, for rest: 1
   model = DecisionTree(n_features, n_classes, initial_steepness=1.0, 

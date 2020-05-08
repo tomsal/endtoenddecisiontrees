@@ -28,6 +28,6 @@ class Gate(nn.Module):
   def forward(self, X, debug=False):
     if self.non_linear is not None:
       X = self.non_linear(X)
-    gating_logits = self.linear(X.view(-1,self.input_size))
+    gating_logits = self.linear(X.contiguous().view(-1,self.input_size))
     gating_weight = self.sigmoid(gating_logits * self.steepness)
     return gating_weight

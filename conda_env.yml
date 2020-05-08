@@ -1,0 +1,13 @@
+name: e2edt
+channels:
+  - defaults
+dependencies:
+  - python=3.6
+  - torchvision
+  - pytorch=1.0
+  - h5py
+  - seaborn
+  - numpy
+  - matplotlib
+  - scikit-learn
+

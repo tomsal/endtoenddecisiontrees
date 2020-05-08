@@ -71,7 +71,7 @@ class DecisionTree(nn.Module):
                                               steepness_inc, weight_decay)
         #print("gains")
         #self.root.foreach(lambda x: print(x.total_info_gain) if x._path_end else False)
-    else: # breadth first
+    else: # depth first
       #print("Depth first training!")
       splitted = 0
       need_fit = True
@@ -111,6 +111,7 @@ class DecisionTree(nn.Module):
                           train_set,
                           batch_size=self.batch_size,
                           shuffle=False)
+                          #num_workers=1)
     # create unshuffled target tensor if necessary
     target_tensor = []
     for (_, target) in sequential_loader:
@@ -140,6 +141,7 @@ class DecisionTree(nn.Module):
                           train_set,
                           batch_size=self.batch_size,
                           shuffle=True)
+                          #num_workers=1)
 
     #~if optimizer is None:
     #~  optimizer = optim.Adam(self.parameters())
@@ -189,6 +191,22 @@ class DecisionTree(nn.Module):
       stack = (batch_idx == len(sequential_loader)-1) # true for last batch
       self.root.EM_normalize_hidden(accumulated_hidden_batch, stack)
 
+  def EM_M_Step(self, sample_idx, data, optimizer):
+    sample_idx = Variable(sample_idx.long())
+    if self.use_cuda:
+      sample_idx = sample_idx.cuda()
+    data = Variable(data.type(self.dtype))
+    optimizer.zero_grad()
+
+    # gradient
+    f_loss = - self.root.EM_decision_loss(data, sample_idx, 1).sum()\
+             / len(sample_idx)
+    if self.regularizer is not None:
+      f_loss = f_loss + self.regularizer(self.named_parameters())
+    f_loss.backward() 
+    optimizer.step()
+    return f_loss.item()
+
   def EM_refine_step(self, train_set, 
                      optimizer=None, target_tensor=None):
     # --- sequential loader
@@ -196,12 +214,14 @@ class DecisionTree(nn.Module):
                           train_set,
                           batch_size=self.batch_size,
                           shuffle=False)
+                          #num_workers=1)
     # --- indexed random batch loader to assign hidden values to samples
     indexed_dataset = IndexedDataset(train_set)
     indexed_loader = torch.utils.data.DataLoader(
                           indexed_dataset,
                           batch_size=self.batch_size,
                           shuffle=True)
+                          #num_workers=1)
 
     #print("batches = {}".format(sequential_loader))
     # --- E-step
@@ -214,24 +234,8 @@ class DecisionTree(nn.Module):
     if optimizer is not None:
       self.train()
       for batch_idx, (sample_idx, data, _) in enumerate(indexed_loader):
-        #data = Variable(data.type(self.dtype))
-        #target = Variable(target.type(self.dtype).long())
-        sample_idx = Variable(sample_idx.long())
-        if self.use_cuda:
-          sample_idx = sample_idx.cuda()
-        data = Variable(data.type(self.dtype))
-        optimizer.zero_grad()
-
-        # gradient
-        f_loss = - self.root.EM_decision_loss(data, sample_idx, 1).sum()\
-                 / len(sample_idx)
-        if self.regularizer is not None:
-          f_loss = f_loss + self.regularizer(self.named_parameters())
-        f_loss.backward() 
-        optimizer.step()
-        # leaf prediction
-        total_f_loss += f_loss.item()
-      del data, f_loss, sample_idx
+        total_f_loss += self.EM_M_Step(sample_idx, data, optimizer)
+      del data, sample_idx
 
     # - leaf prediction
     # Compute target_tensor if not given.
@@ -280,14 +284,13 @@ class DecisionNode(nn.Module):
     self.hidden_normalized = True
     self.prediction_normalized = True
     self.batch_size = batch_size
-    self.categorical_probs_0 = Variable(torch.ones(n_classes).float()/n_classes)
-    self.categorical_probs_1 = Variable(torch.ones(n_classes).float()/n_classes)
+    self.categorical_probs_0 = torch.ones(n_classes).float()/n_classes
+    self.categorical_probs_1 = torch.ones(n_classes).float()/n_classes
     self.regularizer = regularizer
     self.leaf_predictions = leaf_predictions if leaf_predictions is not None\
-                            else Variable(torch.ones(n_classes).float()/n_classes)
+                            else torch.ones(n_classes).float()/n_classes
 
   def cuda(self):
-    # might be redundant... ¯\_(ツ)_/¯
     self.categorical_probs_0 = self.categorical_probs_0.cuda()
     self.categorical_probs_1 = self.categorical_probs_1.cuda()
 
@@ -389,6 +392,7 @@ class DecisionNode(nn.Module):
     sequential_loader = torch.utils.data.DataLoader(train_set,
                                                     batch_size=self.batch_size,
                                                     shuffle=False)
+                                                    #num_workers=1)
     self.eval()
     for data, _ in sequential_loader:
       data = Variable(data.type(self.dtype))
@@ -418,6 +422,7 @@ class DecisionNode(nn.Module):
                           data_set,
                           batch_size=self.batch_size,
                           shuffle=False)
+                          #num_workers=1)
 
     # --- compute info gain and count samples
     total_info_gain = 0
@@ -448,6 +453,7 @@ class DecisionNode(nn.Module):
                           data_set,
                           batch_size=self.batch_size,
                           shuffle=False)
+                          #num_workers=1)
 
     # check for purity.... target_tensor does not exists for vision dsets
     target_0 = None
@@ -586,11 +592,11 @@ class DecisionNode(nn.Module):
       if not self.hidden_normalized:
         raise ValueError("hidden values are not normalized!")
       for k in range(self.n_classes):
-        self.leaf_predictions.data[k] = self.hidden.data[target_tensor == k].sum()
-      self.leaf_predictions.data /= self.hidden.data.sum()
+        self.leaf_predictions[k] = self.hidden[target_tensor == k].detach().sum()
+      self.leaf_predictions /= self.leaf_predictions.detach().sum()
       # repackage... maybe not necessary but let's do it anyway
-      self.leaf_predictions = torch.tensor(self.leaf_predictions.data.type(self.dtype),
-                                           requires_grad=False)
+      #self.leaf_predictions = torch.tensor(self.leaf_predictions.data.type(self.dtype),
+      #                                     requires_grad=False)
     else:
       self.left_child.EM_compute_posterior(target_tensor)
       self.right_child.EM_compute_posterior(target_tensor)

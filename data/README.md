@@ -10,7 +10,9 @@ for further instructions.
 If you want to test it on `MNIST` or `FashionMNIST`, pytorch will download the
 data automatically. You can download the datasets `protein`, `SensIT` and
 `Connect-4` from https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/.
-Extract and save them to `data/LIBSVM`.
+Extract and save them to `data/LIBSVM`. For the dataset `USPS` you could
+obtain the file `usps.h5` for example here:
+https://www.kaggle.com/bistaumanga/usps-dataset/data
 
 
 Example:

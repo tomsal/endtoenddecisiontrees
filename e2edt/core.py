@@ -322,8 +322,8 @@ class DecisionNode(nn.Module):
       gating = self.gating(X)
       if discrete:
         gating = gating.round()
-      return gating       * self.right_child(X)\
-           + (1 - gating) * self.left_child(X)
+      return gating       * self.right_child(X, discrete=discrete)\
+           + (1 - gating) * self.left_child(X, discrete=discrete)
     return self.leaf_predictions
 
   def split(self, initial_steepness):

@@ -143,8 +143,10 @@ if __name__ == '__main__':
   for n_tree in n_trees:
     # --- setup forest for greedy training
     model.add_trees(n_tree, args)
+    print("Number of trees: {}".format(len(model.trees)))
     model.fit_greedy(train_set, args)
     print("Done fitting.")
+    print("Number of trees: {}".format(len(model.trees)))
 
     #~# Nasty hack to count leaves without implementing a function.
     #~count = [0]
@@ -200,9 +202,12 @@ if __name__ == '__main__':
       model_filename = "{}_{}.pth".format(TIMESTAMP, argstr)
       print("Saving model to {}".format(model_filename))
       model.save(model_filename)
+    else:
+      model.flush_trees()
 
   total_nodes = model.count_nodes()
   leaf_nodes = model.count_leaf_nodes()
+  print("Number of trees: {}".format(len(model.trees)))
   print("Total nodes: {}, {} per tree".
         format(total_nodes, float(total_nodes)/len(model.trees)))
   print("Leaf nodes: {}, {} per tree".

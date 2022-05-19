@@ -160,6 +160,10 @@ class RandomForest(nn.Module):
         self.new_trees = []
       yield total_f_loss
 
+  def flush_trees(self):
+    self.trees += self.new_trees
+    self.new_trees = []
+
   def refine_noopt(self, train_set, epochs=100, algo='EM', weight_decay=0.0):
     refiners = [tree.refine(train_set, epochs, algo, weight_decay)\
                 for tree in self.new_trees]

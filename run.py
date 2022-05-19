@@ -108,6 +108,9 @@ if __name__ == '__main__':
   non_linear_module = None
   if args.NN == 'TinyCNN':
     non_linear_module = TinyCNN
+    if args.data != 'MNIST':
+        raise ValueError("The layer dimensions are hardcoded for MNIST.")
+    n_features = 50
 
   regularizer = None
   if args.reg > 0:
